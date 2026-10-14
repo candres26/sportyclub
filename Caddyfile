@@ -1,0 +1,38 @@
+# ---------------------------------------------------------------------------
+# Caddyfile - enrutado por subdominio para SportyClub
+#
+# El subdominio identifica el club (tenant). Tanto el panel como la API viven
+# en el mismo subdominio para que el tenant viaje en el Host:
+#   https://club1.sportyclub.app/            -> panel (Next.js)
+#   https://club1.sportyclub.app/api/v1/...  -> API (FastAPI)
+#
+# En produccion el certificado wildcard requiere el reto DNS (DNS-01) de tu
+# proveedor. Descomenta y configura el bloque `tls` con tu plugin de DNS.
+# En local puedes usar `tls internal` o simplemente no usar Caddy.
+# ---------------------------------------------------------------------------
+
+{
+	email {$ACME_EMAIL}
+	# Descomenta para desarrollo con certificados locales autofirmados:
+	# local_certs
+}
+
+{$BASE_DOMAIN:lvh.me}, *.{$BASE_DOMAIN:lvh.me} {
+	encode zstd gzip
+
+	# --- API backend ---
+	@api path /api/* /docs /redoc /openapi.json
+	handle @api {
+		reverse_proxy backend:8000
+	}
+
+	# --- Panel de administracion ---
+	handle {
+		reverse_proxy admin:3000
+	}
+
+	# Ejemplo de TLS wildcard con DNS challenge (Cloudflare):
+	# tls {
+	# 	dns cloudflare {$CLOUDFLARE_API_TOKEN}
+	# }
+}

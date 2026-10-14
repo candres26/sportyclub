@@ -1,0 +1,71 @@
+# ---------------------------------------------------------------------------
+# SportyClub - Docker Compose (VPS / produccion)
+# Para desarrollo local normalmente ejecutas backend y admin con recarga
+# en caliente y solo levantas `postgres` desde aqui:
+#   docker compose up -d postgres
+# ---------------------------------------------------------------------------
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sportyclub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sportyclub}
+      POSTGRES_DB: ${POSTGRES_DB:-sportyclub}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sportyclub} -d ${POSTGRES_DB:-sportyclub}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "8000"
+
+  admin:
+    build:
+      context: ./admin
+    restart: unless-stopped
+    environment:
+      API_BASE_URL: http://backend:8000
+    env_file: .env
+    depends_on:
+      - backend
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      BASE_DOMAIN: ${BASE_DOMAIN:-lvh.me}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@example.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - admin
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
