@@ -6,7 +6,7 @@ export class ApiError extends Error {
   }
 }
 
-function extractDetail(data: unknown): string {
+export function extractDetail(data: unknown): string {
   if (data && typeof data === "object" && "detail" in data) {
     const detail = (data as { detail: unknown }).detail;
     if (typeof detail === "string") return detail;

@@ -51,3 +51,29 @@ export type Page<T> = {
   limit: number;
   offset: number;
 };
+
+export type PlatformMe = {
+  id: string;
+  email: string;
+  full_name: string;
+};
+
+export type Club = {
+  id: string;
+  slug: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type ClubCreated = Club & {
+  invite_url: string | null;
+};
+
+export type PlatformAdmin = {
+  id: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  created_at: string;
+};

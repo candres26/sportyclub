@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -73,6 +74,13 @@ export default function LoginPage() {
             {loading ? "Entrando..." : "Entrar"}
           </button>
         </form>
+
+        <p className="mt-4 text-center text-xs text-slate-400">
+          Administras la plataforma?{" "}
+          <Link href="/platform/login" className="text-brand-600 hover:underline">
+            Acceso de plataforma
+          </Link>
+        </p>
       </div>
     </main>
   );

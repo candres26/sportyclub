@@ -61,6 +61,10 @@ async def _clean_db(_seed) -> None:
         await session.execute(
             text("TRUNCATE tenants, platform_refresh_tokens CASCADE")
         )
+        await session.execute(
+            text("DELETE FROM platform_admins WHERE email <> :email"),
+            {"email": settings.platform_admin_email.lower().strip()},
+        )
     yield
 
 

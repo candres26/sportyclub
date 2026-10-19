@@ -86,15 +86,22 @@ npm run dev                   # http://localhost:3000
 
 El subdominio identifica al club. En local usamos `lvh.me` (resuelve a 127.0.0.1):
 
-1. Login de plataforma en `http://lvh.me:3000` con `PLATFORM_ADMIN_EMAIL/PASSWORD`.
-2. (El panel de plataforma se construye en la Fase 2; por ahora se puede usar la
-   API en `/api/v1/platform/clubs` para crear clubes e invitar al primer admin).
-3. Visita `http://club1.lvh.me:3000`, crea la cuenta desde el enlace de invitacion
-   (el correo se imprime en el log del backend) y administra el club.
+1. Entra al **panel de plataforma** en `http://lvh.me:3000/platform/login` con
+   `PLATFORM_ADMIN_EMAIL` / `PLATFORM_ADMIN_PASSWORD`.
+2. Crea un club (nombre, subdominio y correo del dueno). El panel te muestra el
+   **enlace de invitacion** para copiar (el correo tambien se imprime en el log
+   del backend).
+3. Abre el enlace en el subdominio del club
+   (`http://tu-club.lvh.me:3000/accept-invitation?token=...`), crea la cuenta del
+   dueno y administra el club desde `/dashboard`.
+
+> Nota: el panel de plataforma vive en el **dominio raiz** (apex); el panel del
+> club, en el **subdominio** de cada club.
 
 ## API (v1)
 
-- **Plataforma** (`/api/v1/platform/...`): `auth/login|refresh|logout|me`, `clubs`.
+- **Plataforma** (`/api/v1/platform/...`): `auth/login|refresh|logout|me`,
+  `clubs`, `admins`.
 - **Club** (`/api/v1/...`, resuelto por subdominio): `auth/*`, `users`, `roles`,
   `invitations`, `audit-logs`.
 
@@ -129,6 +136,8 @@ cd backend && ruff check app tests scripts && mypy app
 
 ## Roadmap
 
-- **Fase 2**: panel de plataforma (alta de clubes e invitaciones).
-- **Fase 3**: modulos de dominio (socios, equipos, entrenamientos, cuotas, etc.).
+- **Fase 1** ✅: fundacion multitenant (RLS, auth, RBAC, invitaciones, auditoria).
+- **Fase 2** ✅: panel de plataforma (clubes y administradores).
+- **Fase 3**: modulos de dominio — socios/membresias, equipos/categorias y
+  entrenamientos/sesiones; despues cuotas, reservas y comunicacion.
 - **Fase 4**: observabilidad, backups, colas y notificaciones reales.

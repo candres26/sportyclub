@@ -40,3 +40,7 @@ class TenantRead(BaseModel):
     name: str
     is_active: bool
     created_at: datetime
+
+
+class ClubCreatedRead(TenantRead):
+    invite_url: str | None = None
