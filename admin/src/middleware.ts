@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { clubSlug } from "@/lib/host";
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/session";
-
-const BASE_DOMAIN = (process.env.NEXT_PUBLIC_BASE_DOMAIN ?? "lvh.me").toLowerCase();
-
-/** Slug del club segun el subdominio; null en el dominio raiz (igual que el backend). */
-function clubSlug(host: string): string | null {
-  const hostname = host.split(":")[0].toLowerCase();
-  if (hostname === BASE_DOMAIN || hostname === `www.${BASE_DOMAIN}`) return null;
-  if (!hostname.endsWith(`.${BASE_DOMAIN}`)) return null;
-  return hostname.slice(0, -(BASE_DOMAIN.length + 1)).split(".")[0] || null;
-}
 
 function redirectTo(req: NextRequest, host: string, pathname: string) {
   // req.url puede llevar el host interno de Next (p. ej. 127.0.0.1) en vez del
@@ -24,8 +15,10 @@ export function middleware(req: NextRequest) {
   const host = req.headers.get("host") ?? req.nextUrl.host;
   const { pathname } = req.nextUrl;
 
-  // Sin subdominio no hay club: el dominio raiz es del panel de plataforma.
+  // Sin subdominio no hay club: el dominio raiz muestra la landing en "/" y el
+  // resto de rutas del panel de club llevan al panel de plataforma.
   if (clubSlug(host) === null) {
+    if (pathname === "/") return NextResponse.next();
     return redirectTo(req, host, "/platform");
   }
 
