@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint, false
+from sqlalchemy import Boolean, ForeignKey, ForeignKeyConstraint, String, UniqueConstraint, false
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -17,7 +17,11 @@ class Permission(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 class Role(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "roles"
-    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_roles_tenant_name"),)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name", name="uq_roles_tenant_name"),
+        # Destino de las FKs compuestas (tenant_id, role_id) de otras tablas.
+        UniqueConstraint("tenant_id", "id", name="uq_roles_tenant_id_id"),
+    )
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
@@ -31,10 +35,16 @@ class Role(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 class RolePermission(Base):
     __tablename__ = "role_permissions"
-
-    role_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "role_id"],
+            ["roles.tenant_id", "roles.id"],
+            name="fk_role_permissions_role_tenant",
+            ondelete="CASCADE",
+        ),
     )
+
+    role_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
     permission_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True
     )
@@ -45,13 +55,23 @@ class RolePermission(Base):
 
 class UserRole(Base):
     __tablename__ = "user_roles"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "user_id"],
+            ["users.tenant_id", "users.id"],
+            name="fk_user_roles_user_tenant",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "role_id"],
+            ["roles.tenant_id", "roles.id"],
+            name="fk_user_roles_role_tenant",
+            ondelete="CASCADE",
+        ),
+    )
 
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
-    )
-    role_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True
-    )
+    user_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    role_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
     )

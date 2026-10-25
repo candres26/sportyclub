@@ -11,6 +11,8 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "users"
     __table_args__ = (
         UniqueConstraint("tenant_id", "email", name="uq_users_tenant_email"),
+        # Destino de las FKs compuestas (tenant_id, user_id) de otras tablas.
+        UniqueConstraint("tenant_id", "id", name="uq_users_tenant_id_id"),
     )
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(

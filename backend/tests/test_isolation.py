@@ -1,4 +1,10 @@
-from tests.conftest import auth_headers
+import pytest
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
+
+from app.core.database import async_session_factory
+from app.tenancy.security import set_tenant
+from tests.conftest import _owner_session_factory, auth_headers
 
 
 async def test_users_are_isolated_between_clubs(client, club_factory):
@@ -40,3 +46,30 @@ async def test_roles_are_isolated_between_clubs(client, club_factory):
     ids_b = {role["id"] for role in roles_b.json()}
     assert ids_a.isdisjoint(ids_b)
     assert {"admin", "staff", "member"} == {r["name"] for r in roles_a.json()}
+
+
+async def test_db_rejects_cross_tenant_reference(client, club_factory):
+    """Las FKs ignoran RLS: la BD debe impedir por si misma referencias entre clubes."""
+    club_a = await club_factory("iso-fk-a")
+    club_b = await club_factory("iso-fk-b")
+
+    async with _owner_session_factory() as owner:
+        user_a = await owner.scalar(
+            text("SELECT id FROM users WHERE email = :email"),
+            {"email": club_a["owner_email"]},
+        )
+        role_b = await owner.scalar(
+            text("SELECT id FROM roles WHERE tenant_id = :tid AND name = 'member'"),
+            {"tid": club_b["tenant"]["id"]},
+        )
+
+    with pytest.raises(IntegrityError):
+        async with async_session_factory() as session, session.begin():
+            await set_tenant(session, club_a["tenant"]["id"])
+            await session.execute(
+                text(
+                    "INSERT INTO user_roles (user_id, role_id, tenant_id) "
+                    "VALUES (:user_id, :role_id, :tenant_id)"
+                ),
+                {"user_id": user_a, "role_id": role_b, "tenant_id": club_a["tenant"]["id"]},
+            )
