@@ -22,7 +22,7 @@ async def test_login_and_me(client, club_factory):
     body = me.json()
     assert body["email"] == club["owner_email"]
     assert body["tenant"]["slug"] == "auth-club"
-    assert "admin" in body["roles"]
+    assert body["roles"] == ["owner"]
 
 
 async def test_login_wrong_password(client, club_factory):

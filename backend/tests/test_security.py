@@ -131,7 +131,7 @@ async def test_system_role_permissions_cannot_change(client, club_factory):
 
 
 # --------------------------------------------------------------------------- #
-# El club no se queda sin admin
+# El club no se queda sin dueno
 # --------------------------------------------------------------------------- #
 async def test_admin_cannot_deactivate_self(client, club_factory):
     club = await club_factory("sec-self")
@@ -144,7 +144,7 @@ async def test_admin_cannot_deactivate_self(client, club_factory):
     assert resp.status_code == 400
 
 
-async def test_last_admin_cannot_drop_admin_role(client, club_factory):
+async def test_last_owner_cannot_drop_owner_role(client, club_factory):
     club = await club_factory("sec-last")
     roles = await _roles_by_name(client, club)
     owner_id = await _me_id(client, club)
@@ -156,9 +156,9 @@ async def test_last_admin_cannot_drop_admin_role(client, club_factory):
     assert resp.status_code == 400
 
 
-async def test_admin_can_be_removed_when_another_admin_exists(client, club_factory, mailbox):
+async def test_owner_can_be_removed_when_another_owner_exists(client, club_factory, mailbox):
     club = await club_factory("sec-two")
-    second = await _invite_and_login(client, club, mailbox, "admin2@example.com", "admin")
+    second = await _invite_and_login(client, club, mailbox, "owner2@example.com", "owner")
     second_id = await _me_id(client, second)
 
     resp = await client.delete(f"/api/v1/users/{second_id}", headers=auth_headers(club))
@@ -276,3 +276,71 @@ async def test_platform_admin_cannot_deactivate_self(client, platform_headers):
         headers=platform_headers,
     )
     assert resp.status_code == 400
+
+
+# --------------------------------------------------------------------------- #
+# Dueno, administrador y entrenador
+# --------------------------------------------------------------------------- #
+async def test_admin_cannot_appoint_owner(client, club_factory, mailbox):
+    club = await club_factory("sec-appoint")
+    admin = await _invite_and_login(client, club, mailbox, "secre@example.com", "admin")
+    admin_id = await _me_id(client, admin)
+
+    roles = await _roles_by_name(client, club)
+    resp = await client.put(
+        f"/api/v1/users/{admin_id}/roles",
+        json={"role_ids": [roles["owner"]["id"]]},
+        headers=auth_headers(admin),
+    )
+    assert resp.status_code == 403
+
+
+async def test_admin_cannot_manage_roles(client, club_factory, mailbox):
+    club = await club_factory("sec-adminroles")
+    admin = await _invite_and_login(client, club, mailbox, "secre2@example.com", "admin")
+    resp = await client.post(
+        "/api/v1/roles",
+        json={"name": "nuevo", "permissions": ["club:read"]},
+        headers=auth_headers(admin),
+    )
+    assert resp.status_code == 403
+
+
+async def test_admin_can_invite_coach(client, club_factory, mailbox):
+    club = await club_factory("sec-coach")
+    admin = await _invite_and_login(client, club, mailbox, "secre3@example.com", "admin")
+    # El admin invita con sus propias credenciales: coach ⊆ permisos de admin.
+    coach = await _invite_and_login(client, admin, mailbox, "profe@example.com", "coach")
+    me = await client.get("/api/v1/auth/me", headers=auth_headers(coach))
+    assert me.json()["roles"] == ["coach"]
+
+
+async def test_sync_system_roles_completes_existing_club(client, club_factory):
+    """Un club creado antes de existir `coach` o los permisos nuevos se completa al arrancar."""
+    from sqlalchemy import text
+
+    from app.core.database import async_session_factory
+    from app.modules.rbac import service as rbac_service
+    from tests.conftest import _owner_session_factory
+
+    club = await club_factory("sec-sync")
+    tenant_id = club["tenant"]["id"]
+    async with _owner_session_factory() as owner, owner.begin():
+        await owner.execute(
+            text("DELETE FROM roles WHERE tenant_id = :tid AND name = 'coach'"), {"tid": tenant_id}
+        )
+        await owner.execute(
+            text(
+                "DELETE FROM role_permissions rp USING roles r, permissions p "
+                "WHERE rp.role_id = r.id AND p.id = rp.permission_id "
+                "AND r.tenant_id = :tid AND r.name = 'admin' AND p.code = 'people:read'"
+            ),
+            {"tid": tenant_id},
+        )
+
+    async with async_session_factory() as session, session.begin():
+        await rbac_service.sync_system_roles(session)
+
+    roles = await _roles_by_name(client, club)
+    assert "coach" in roles
+    assert "people:read" in roles["admin"]["permissions"]

@@ -45,7 +45,7 @@ async def test_roles_are_isolated_between_clubs(client, club_factory):
     ids_a = {role["id"] for role in roles_a.json()}
     ids_b = {role["id"] for role in roles_b.json()}
     assert ids_a.isdisjoint(ids_b)
-    assert {"admin", "staff", "member"} == {r["name"] for r in roles_a.json()}
+    assert {"owner", "admin", "coach", "staff", "member"} == {r["name"] for r in roles_a.json()}
 
 
 async def test_db_rejects_cross_tenant_reference(client, club_factory):

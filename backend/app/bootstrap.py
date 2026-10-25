@@ -32,4 +32,5 @@ async def ensure_platform_admin(session: AsyncSession) -> None:
 async def bootstrap() -> None:
     async with async_session_factory() as session, session.begin():
         await rbac_service.sync_permissions(session)
+        await rbac_service.sync_system_roles(session)
         await ensure_platform_admin(session)

@@ -2,7 +2,7 @@ import re
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 SLUG_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$")
 RESERVED_SLUGS = {
@@ -23,6 +23,8 @@ class TenantCreate(BaseModel):
     name: str
     slug: str
     owner_email: EmailStr | None = None
+    # Deporte principal: nombre de la disciplina inicial del club.
+    sport: str | None = Field(default=None, max_length=100)
 
     @field_validator("slug")
     @classmethod

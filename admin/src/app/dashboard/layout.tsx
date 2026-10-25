@@ -9,6 +9,7 @@ import type { Me } from "@/lib/types";
 
 const nav = [
   { href: "/dashboard", label: "Inicio" },
+  { href: "/dashboard/people", label: "Deportistas" },
   { href: "/dashboard/users", label: "Usuarios" },
   { href: "/dashboard/roles", label: "Roles" },
   { href: "/dashboard/invitations", label: "Invitaciones" },
@@ -55,7 +56,10 @@ export default function DashboardLayout({
       <div className="mx-auto max-w-5xl px-6 py-6">
         <nav className="mb-6 flex gap-2">
           {nav.map((item) => {
-            const active = pathname === item.href;
+            const active =
+              item.href === "/dashboard"
+                ? pathname === item.href
+                : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}

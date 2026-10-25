@@ -103,7 +103,22 @@ El subdominio identifica al club. En local usamos `lvh.me` (resuelve a 127.0.0.1
 - **Plataforma** (`/api/v1/platform/...`): `auth/login|refresh|logout|me`,
   `clubs`, `admins`.
 - **Club** (`/api/v1/...`, resuelto por subdominio): `auth/*`, `users`, `roles`,
-  `invitations`, `audit-logs`.
+  `invitations`, `audit-logs`, `disciplines`, `metrics` y `people` (con
+  `guardians`, `dependents`, `profile` y `measurements`).
+
+### Roles del club
+
+| Rol | Permisos |
+|---|---|
+| `owner` (dueno) | Todo. Lo recibe quien acepta la invitacion al crear el club; siempre queda al menos uno activo. |
+| `admin` | Todo salvo `club:update` y la gestion de roles. No puede nombrar duenos. |
+| `coach` (entrenador) | Ver deportistas y acudientes, editar la ficha tecnica y registrar mediciones. |
+| `staff` | Solo lectura. |
+| `member` | `club:read`. |
+
+Al arrancar, la API sincroniza los roles del sistema de todos los clubes con el
+catalogo (`app/modules/rbac/catalog.py`): crea los que falten y anade permisos
+nuevos, sin quitar nunca ninguno.
 
 Documentacion interactiva: `http://localhost:8000/docs`.
 
@@ -138,6 +153,11 @@ cd backend && ruff check app tests scripts && mypy app
 
 - **Fase 1** ✅: fundacion multitenant (RLS, auth, RBAC, invitaciones, auditoria).
 - **Fase 2** ✅: panel de plataforma (clubes y administradores).
-- **Fase 3**: modulos de dominio — socios/membresias, equipos/categorias y
-  entrenamientos/sesiones; despues cuotas, reservas y comunicacion.
+- **Fase 3**: modulos de dominio.
+  - **3A** ✅: personas (deportistas y acudientes), ficha tecnica con historial
+    de mediciones, disciplinas y roles dueno/entrenador.
+  - **3B**: planes y membresias (con responsable de pago).
+  - **3C**: mensualidades (vencimiento el dia 5, recargo por mora configurable)
+    y registro de pagos.
+  - Despues: equipos/categorias, entrenamientos/sesiones, reservas y comunicacion.
 - **Fase 4**: observabilidad, backups, colas y notificaciones reales.

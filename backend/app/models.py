@@ -8,7 +8,14 @@ from app.modules.auth.models import (
     RefreshToken,
 )
 from app.modules.clubs.models import Tenant
+from app.modules.disciplines.models import Discipline, MetricDefinition
 from app.modules.invitations.models import Invitation
+from app.modules.people.models import (
+    AthleteMeasurement,
+    AthleteProfile,
+    Guardianship,
+    Person,
+)
 from app.modules.platform.models import PlatformAdmin
 from app.modules.rbac.models import Permission, Role, RolePermission, UserRole
 from app.modules.users.models import User
@@ -27,4 +34,10 @@ __all__ = [
     "PlatformRefreshToken",
     "Invitation",
     "AuditLog",
+    "Discipline",
+    "MetricDefinition",
+    "Person",
+    "Guardianship",
+    "AthleteProfile",
+    "AthleteMeasurement",
 ]

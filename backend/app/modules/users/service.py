@@ -56,8 +56,8 @@ async def update_user(
         if not data.is_active:
             if user.id == actor_id:
                 raise BadRequestError("No puedes desactivar tu propia cuenta")
-            if await rbac_service.is_admin(session, user.id):
-                await rbac_service.ensure_other_active_admin(session, user.id)
+            if await rbac_service.is_owner(session, user.id):
+                await rbac_service.ensure_other_active_owner(session, user.id)
             await auth_service.revoke_user_refresh_tokens(session, user.id)
         user.is_active = data.is_active
     await session.flush()
@@ -87,9 +87,9 @@ async def set_user_roles(
         session, actor_id, await rbac_service.permission_codes_for_roles(session, changed)
     )
 
-    admin_role_id = await rbac_service.admin_role_id(session)
-    if admin_role_id in current and admin_role_id not in role_ids:
-        await rbac_service.ensure_other_active_admin(session, user.id)
+    owner_role_id = await rbac_service.owner_role_id(session)
+    if owner_role_id in current and owner_role_id not in role_ids:
+        await rbac_service.ensure_other_active_owner(session, user.id)
 
     await session.execute(delete(UserRole).where(UserRole.user_id == user.id))
     for role_id in role_ids:
@@ -103,6 +103,6 @@ async def delete_user(session: AsyncSession, user_id: uuid.UUID, actor_id: uuid.
     if user.id == actor_id:
         raise BadRequestError("No puedes eliminar tu propia cuenta")
     await rbac_service.ensure_can_manage_user(session, actor_id, user.id)
-    if await rbac_service.is_admin(session, user.id):
-        await rbac_service.ensure_other_active_admin(session, user.id)
+    if await rbac_service.is_owner(session, user.id):
+        await rbac_service.ensure_other_active_owner(session, user.id)
     await session.delete(user)

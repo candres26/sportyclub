@@ -20,6 +20,7 @@ export default function PlatformClubsPage() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
+  const [sport, setSport] = useState("");
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -50,6 +51,7 @@ export default function PlatformClubsPage() {
           name,
           slug,
           owner_email: ownerEmail || null,
+          sport: sport || null,
         }),
       });
       setInviteUrl(created.invite_url);
@@ -57,6 +59,7 @@ export default function PlatformClubsPage() {
       setName("");
       setSlug("");
       setOwnerEmail("");
+      setSport("");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al crear el club");
@@ -132,6 +135,18 @@ export default function PlatformClubsPage() {
               value={ownerEmail}
               onChange={(e) => setOwnerEmail(e.target.value)}
               placeholder="dueno@club.com"
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="sport">
+              Deporte
+            </label>
+            <input
+              id="sport"
+              className="input"
+              value={sport}
+              onChange={(e) => setSport(e.target.value)}
+              placeholder="Boxeo, futbol, natacion..."
             />
           </div>
           <div className="sm:col-span-2">
