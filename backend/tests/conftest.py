@@ -1,19 +1,18 @@
 import os
 
 # --- Configuracion de entorno para tests (antes de importar la app) -------- #
+# Host, puerto y credenciales de la BD salen del .env (o de los valores por
+# defecto de Settings), igual que en desarrollo. El nombre de la BD se fuerza
+# siempre: los tests vacian tablas y nunca deben tocar la BD de desarrollo.
+os.environ["POSTGRES_DB"] = "sportyclub_test"
 os.environ.setdefault("ENVIRONMENT", "test")
-os.environ.setdefault("POSTGRES_HOST", "localhost")
-os.environ.setdefault("POSTGRES_PORT", "5432")
-os.environ.setdefault("POSTGRES_USER", "sportyclub")
-os.environ.setdefault("POSTGRES_PASSWORD", "sportyclub")
-os.environ.setdefault("POSTGRES_DB", "sportyclub_test")
-os.environ.setdefault("APP_DB_USER", "app_user")
-os.environ.setdefault("APP_DB_PASSWORD", "app_user")
+os.environ.setdefault("DEBUG", "false")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-0123456789abcdef0123456789abcdef")
 os.environ.setdefault("BASE_DOMAIN", "lvh.me")
 os.environ.setdefault("PANEL_SCHEME", "http")
 os.environ.setdefault("PANEL_PORT", "3000")
 os.environ.setdefault("DB_USE_NULL_POOL", "true")
+os.environ.setdefault("TRUST_FORWARDED_HOST", "true")
 os.environ.setdefault("PLATFORM_ADMIN_EMAIL", "admin@example.com")
 os.environ.setdefault("PLATFORM_ADMIN_PASSWORD", "adminpass123")
 
@@ -30,6 +29,7 @@ from sqlalchemy.pool import NullPool
 
 from alembic import command
 from app.core.config import settings
+from app.core.rate_limit import login_failures, password_reset_requests
 from app.main import app
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -65,6 +65,8 @@ async def _clean_db(_seed) -> None:
             text("DELETE FROM platform_admins WHERE email <> :email"),
             {"email": settings.platform_admin_email.lower().strip()},
         )
+    login_failures.clear()
+    password_reset_requests.clear()
     yield
 
 

@@ -1,10 +1,11 @@
 import hashlib
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 import bcrypt
 import jwt
+from pydantic import AfterValidator, Field
 
 from app.core.config import settings
 from app.core.exceptions import UnauthorizedError
@@ -12,9 +13,32 @@ from app.core.exceptions import UnauthorizedError
 TokenType = Literal["access", "refresh"]
 TokenScope = Literal["tenant", "platform"]
 
+# bcrypt solo usa los primeros 72 bytes y bcrypt>=5 lanza error si se superan.
+MAX_PASSWORD_BYTES = 72
+
+
+def _check_password_bytes(value: str) -> str:
+    if len(value.encode("utf-8")) > MAX_PASSWORD_BYTES:
+        raise ValueError(f"La contrasena no puede superar {MAX_PASSWORD_BYTES} bytes")
+    return value
+
+
+PasswordStr = Annotated[
+    str, Field(min_length=8, max_length=128), AfterValidator(_check_password_bytes)
+]
+
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+# Hash de referencia para gastar el mismo tiempo cuando la cuenta no existe y no
+# revelar por tiempos de respuesta que correos estan registrados.
+_DUMMY_PASSWORD_HASH = bcrypt.hashpw(b"dummy-password", bcrypt.gensalt()).decode("utf-8")
+
+
+def burn_password_check(password: str) -> None:
+    verify_password(password, _DUMMY_PASSWORD_HASH)
 
 
 def verify_password(password: str, password_hash: str) -> bool:

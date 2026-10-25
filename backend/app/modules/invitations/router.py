@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 
 from app.core.deps import TenantContext, get_tenant_context, require_permission
 from app.core.email import send_invitation_email
@@ -29,6 +29,7 @@ async def create_invitation(
     payload: InvitationCreate,
     ctx: TenantDep,
     current_user: Annotated[User, Depends(require_permission("invitations:create"))],
+    background: BackgroundTasks,
 ) -> InvitationRead:
     invitation, raw_token = await service.create_invitation(
         ctx.session,
@@ -40,7 +41,9 @@ async def create_invitation(
     invite_url = panel_url(
         ctx.tenant.slug, f"/accept-invitation?token={raw_token}"
     )
-    send_invitation_email(
+    # Se envia tras el commit para no mandar enlaces de una transaccion fallida.
+    background.add_task(
+        send_invitation_email,
         to=str(payload.email),
         club_name=ctx.tenant.name,
         invite_url=invite_url,

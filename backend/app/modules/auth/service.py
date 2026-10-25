@@ -2,7 +2,7 @@ import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -13,6 +13,7 @@ from app.core.exceptions import (
     UnauthorizedError,
 )
 from app.core.security import (
+    burn_password_check,
     create_access_token,
     create_refresh_token,
     decode_token,
@@ -49,6 +50,7 @@ def _expires_in_seconds() -> int:
 async def authenticate(session: AsyncSession, email: str, password: str) -> User:
     user = await session.scalar(select(User).where(User.email == email.lower().strip()))
     if user is None or user.password_hash is None:
+        burn_password_check(password)
         raise UnauthorizedError("Credenciales invalidas")
     if not verify_password(password, user.password_hash):
         raise UnauthorizedError("Credenciales invalidas")
@@ -91,7 +93,14 @@ async def rotate_refresh(
     row = await session.scalar(
         select(RefreshToken).where(RefreshToken.token_hash == hash_token(raw_refresh))
     )
-    if row is None or row.revoked_at is not None or row.expires_at <= _now():
+    if row is not None and row.revoked_at is not None:
+        # Reutilizacion de un token ya rotado: probablemente robado. Se cierran
+        # todas las sesiones del usuario.
+        await revoke_user_refresh_tokens(session, row.user_id)
+        # Commit explicito: el 401 haria rollback y se perderia la revocacion.
+        await session.commit()
+        raise UnauthorizedError("Token de refresco invalido o revocado")
+    if row is None or row.expires_at <= _now():
         raise UnauthorizedError("Token de refresco invalido o revocado")
 
     row.revoked_at = _now()
@@ -102,6 +111,14 @@ async def rotate_refresh(
 
     await session.flush()
     return await issue_tokens(session, user)
+
+
+async def revoke_user_refresh_tokens(session: AsyncSession, user_id: uuid.UUID) -> None:
+    await session.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user_id, RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=_now())
+    )
 
 
 async def revoke_refresh(session: AsyncSession, raw_refresh: str) -> None:
@@ -177,6 +194,7 @@ async def reset_password(session: AsyncSession, raw_token: str, password: str) -
 
     user.password_hash = hash_password(password)
     row.used_at = _now()
+    await revoke_user_refresh_tokens(session, user.id)
     await session.flush()
 
 
@@ -201,7 +219,10 @@ async def authenticate_platform(
     admin = await session.scalar(
         select(PlatformAdmin).where(PlatformAdmin.email == email.lower().strip())
     )
-    if admin is None or not verify_password(password, admin.password_hash):
+    if admin is None:
+        burn_password_check(password)
+        raise UnauthorizedError("Credenciales invalidas")
+    if not verify_password(password, admin.password_hash):
         raise UnauthorizedError("Credenciales invalidas")
     if not admin.is_active:
         raise ForbiddenError("Administrador inactivo")
@@ -237,7 +258,18 @@ async def rotate_platform_refresh(session: AsyncSession, raw_refresh: str) -> To
             PlatformRefreshToken.token_hash == hash_token(raw_refresh)
         )
     )
-    if row is None or row.revoked_at is not None or row.expires_at <= _now():
+    if row is not None and row.revoked_at is not None:
+        await session.execute(
+            update(PlatformRefreshToken)
+            .where(
+                PlatformRefreshToken.platform_admin_id == row.platform_admin_id,
+                PlatformRefreshToken.revoked_at.is_(None),
+            )
+            .values(revoked_at=_now())
+        )
+        await session.commit()
+        raise UnauthorizedError("Token de refresco invalido o revocado")
+    if row is None or row.expires_at <= _now():
         raise UnauthorizedError("Token de refresco invalido o revocado")
 
     row.revoked_at = _now()

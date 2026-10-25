@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -30,14 +30,16 @@ async def list_clubs(session: DbDep, _: AdminDep) -> list[TenantRead]:
 
 @router.post("", response_model=ClubCreatedRead, status_code=status.HTTP_201_CREATED)
 async def create_club(
-    payload: TenantCreate, session: DbDep, _: AdminDep
+    payload: TenantCreate, session: DbDep, _: AdminDep, background: BackgroundTasks
 ) -> ClubCreatedRead:
     tenant, raw_token = await service.create_tenant(session, payload)
 
     invite_url: str | None = None
     if raw_token is not None and payload.owner_email is not None:
         invite_url = panel_url(tenant.slug, f"/accept-invitation?token={raw_token}")
-        send_invitation_email(
+        # Se envia tras el commit para no mandar enlaces de una transaccion fallida.
+        background.add_task(
+            send_invitation_email,
             to=str(payload.owner_email),
             club_name=tenant.name,
             invite_url=invite_url,

@@ -37,3 +37,8 @@ class ConflictError(AppError):
 
 class TenantNotFoundError(NotFoundError):
     detail = "Club no encontrado"
+
+
+class TooManyRequestsError(AppError):
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    detail = "Demasiados intentos, vuelve a intentarlo mas tarde"

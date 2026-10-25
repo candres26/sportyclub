@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.deps import get_current_platform_admin
+from app.core.exceptions import UnauthorizedError
+from app.core.rate_limit import login_failures
 from app.modules.auth import service
 from app.modules.auth.schemas import (
     LoginRequest,
@@ -22,7 +24,16 @@ PlatformAdminDep = Annotated[PlatformAdmin, Depends(get_current_platform_admin)]
 
 @router.post("/login", response_model=TokenPair)
 async def platform_login(payload: LoginRequest, session: DbDep) -> TokenPair:
-    admin = await service.authenticate_platform(session, str(payload.email), payload.password)
+    key = f"platform:{str(payload.email).lower()}"
+    login_failures.check(key)
+    try:
+        admin = await service.authenticate_platform(
+            session, str(payload.email), payload.password
+        )
+    except UnauthorizedError:
+        login_failures.hit(key)
+        raise
+    login_failures.reset(key)
     return await service.issue_platform_tokens(session, admin)
 
 

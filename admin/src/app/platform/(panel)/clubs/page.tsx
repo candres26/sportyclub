@@ -20,7 +20,6 @@ export default function PlatformClubsPage() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
-  const [ownerName, setOwnerName] = useState("");
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -51,7 +50,6 @@ export default function PlatformClubsPage() {
           name,
           slug,
           owner_email: ownerEmail || null,
-          owner_full_name: ownerName || null,
         }),
       });
       setInviteUrl(created.invite_url);
@@ -59,7 +57,6 @@ export default function PlatformClubsPage() {
       setName("");
       setSlug("");
       setOwnerEmail("");
-      setOwnerName("");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al crear el club");
@@ -135,17 +132,6 @@ export default function PlatformClubsPage() {
               value={ownerEmail}
               onChange={(e) => setOwnerEmail(e.target.value)}
               placeholder="dueno@club.com"
-            />
-          </div>
-          <div>
-            <label className="label" htmlFor="owner_name">
-              Nombre del dueno
-            </label>
-            <input
-              id="owner_name"
-              className="input"
-              value={ownerName}
-              onChange={(e) => setOwnerName(e.target.value)}
             />
           </div>
           <div className="sm:col-span-2">

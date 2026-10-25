@@ -39,6 +39,6 @@ async def update_admin(
     admin_id: uuid.UUID,
     payload: PlatformAdminUpdate,
     session: DbDep,
-    _: AdminDep,
+    current_admin: AdminDep,
 ) -> PlatformAdminRead:
-    return await service.update_admin(session, admin_id, payload)
+    return await service.update_admin(session, admin_id, payload, current_admin.id)

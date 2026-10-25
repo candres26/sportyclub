@@ -1,9 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 
 from app.core.deps import get_current_user, get_tenant_context
 from app.core.email import send_password_reset_email
+from app.core.exceptions import UnauthorizedError
+from app.core.rate_limit import login_failures, password_reset_requests
 from app.core.urls import panel_url
 from app.modules.auth import service
 from app.modules.auth.schemas import (
@@ -27,7 +29,14 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 @router.post("/login", response_model=TokenPair)
 async def login(payload: LoginRequest, ctx: TenantDep) -> TokenPair:
-    user = await service.authenticate(ctx.session, str(payload.email), payload.password)
+    key = f"tenant:{ctx.tenant.id}:{str(payload.email).lower()}"
+    login_failures.check(key)
+    try:
+        user = await service.authenticate(ctx.session, str(payload.email), payload.password)
+    except UnauthorizedError:
+        login_failures.hit(key)
+        raise
+    login_failures.reset(key)
     return await service.issue_tokens(ctx.session, user)
 
 
@@ -56,13 +65,20 @@ async def accept_invitation(
 
 
 @router.post("/password/forgot", status_code=status.HTTP_202_ACCEPTED)
-async def forgot_password(payload: ForgotPasswordRequest, ctx: TenantDep) -> dict[str, str]:
+async def forgot_password(
+    payload: ForgotPasswordRequest, ctx: TenantDep, background: BackgroundTasks
+) -> dict[str, str]:
+    key = f"tenant:{ctx.tenant.id}:{str(payload.email).lower()}"
+    password_reset_requests.check(key)
+    password_reset_requests.hit(key)
     raw_token = await service.request_password_reset(ctx.session, str(payload.email))
     if raw_token is not None:
         reset_url = panel_url(
             ctx.tenant.slug, f"/reset-password?token={raw_token}"
         )
-        send_password_reset_email(to=str(payload.email), reset_url=reset_url)
+        background.add_task(
+            send_password_reset_email, to=str(payload.email), reset_url=reset_url
+        )
     return {"detail": "Si el correo existe recibiras instrucciones"}
 
 

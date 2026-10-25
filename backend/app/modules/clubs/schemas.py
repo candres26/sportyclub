@@ -4,15 +4,25 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
-SLUG_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$")
-RESERVED_SLUGS = {"www", "api", "app", "admin", "static", "assets", "mail"}
+SLUG_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$")
+RESERVED_SLUGS = {
+    "www",
+    "api",
+    "app",
+    "admin",
+    "platform",
+    "static",
+    "assets",
+    "mail",
+    "docs",
+    "status",
+}
 
 
 class TenantCreate(BaseModel):
     name: str
     slug: str
     owner_email: EmailStr | None = None
-    owner_full_name: str | None = None
 
     @field_validator("slug")
     @classmethod

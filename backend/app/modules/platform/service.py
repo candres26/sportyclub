@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import BadRequestError, ConflictError, NotFoundError
@@ -42,7 +42,10 @@ async def create_admin(
 
 
 async def update_admin(
-    session: AsyncSession, admin_id: uuid.UUID, data: PlatformAdminUpdate
+    session: AsyncSession,
+    admin_id: uuid.UUID,
+    data: PlatformAdminUpdate,
+    actor_id: uuid.UUID,
 ) -> PlatformAdminRead:
     admin = await session.get(PlatformAdmin, admin_id)
     if admin is None:
@@ -50,12 +53,18 @@ async def update_admin(
 
     if data.is_active is not None and data.is_active != admin.is_active:
         if not data.is_active:
-            active_count = await session.scalar(
-                select(func.count())
-                .select_from(PlatformAdmin)
-                .where(PlatformAdmin.is_active.is_(True))
-            )
-            if (active_count or 0) <= 1:
+            if admin.id == actor_id:
+                raise BadRequestError("No puedes desactivar tu propia cuenta")
+            # Bloquea las filas activas para que dos desactivaciones concurrentes
+            # no dejen la plataforma sin administradores.
+            active_ids = (
+                await session.scalars(
+                    select(PlatformAdmin.id)
+                    .where(PlatformAdmin.is_active.is_(True))
+                    .with_for_update()
+                )
+            ).all()
+            if len(active_ids) <= 1:
                 raise BadRequestError(
                     "No se puede desactivar al ultimo administrador activo"
                 )

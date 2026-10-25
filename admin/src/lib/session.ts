@@ -9,15 +9,14 @@ export function apiBaseUrl(): string {
   return process.env.API_BASE_URL ?? "http://localhost:8000";
 }
 
-export function baseDomain(): string {
-  return process.env.BASE_DOMAIN ?? "lvh.me";
-}
-
-/** Deriva el host del club (subdominio) a partir del Host del panel. */
+/**
+ * Host que se reenvia a la API para resolver el club. Se pasa el hostname real
+ * del panel y el backend extrae el subdominio respecto a BASE_DOMAIN, igual que
+ * cuando la peticion llega por Caddy (sin subdominio responde "club no encontrado").
+ */
 export function tenantHost(req: NextRequest): string {
   const host = req.headers.get("host") ?? "";
-  const sub = host.split(":")[0].split(".")[0] || "www";
-  return `${sub}.${baseDomain()}`;
+  return host.split(":")[0].toLowerCase();
 }
 
 const cookieOptions = {

@@ -9,7 +9,9 @@ from app.core.exceptions import ConflictError, NotFoundError
 from app.core.security import hash_token
 from app.modules.invitations.models import Invitation
 from app.modules.invitations.schemas import InvitationRead
+from app.modules.rbac import service as rbac_service
 from app.modules.rbac.models import Role
+from app.modules.users.models import User
 
 INVITATION_TTL_DAYS = 7
 
@@ -43,6 +45,16 @@ async def create_invitation(
     role = await session.get(Role, role_id)
     if role is None:
         raise NotFoundError("Rol no encontrado en el club")
+    if invited_by_user_id is not None:
+        await rbac_service.ensure_can_grant(
+            session,
+            invited_by_user_id,
+            await rbac_service.permission_codes_for_roles(session, {role_id}),
+        )
+
+    existing_user = await session.scalar(select(User.id).where(User.email == email))
+    if existing_user is not None:
+        raise ConflictError("Ya existe un usuario con ese correo en el club")
 
     pending = await session.scalar(
         select(Invitation).where(

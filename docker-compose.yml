@@ -15,8 +15,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-sportyclub}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Solo accesible desde la propia maquina (para backups o psql). Nunca lo
+    # publiques en 0.0.0.0: el rol de POSTGRES_USER es superusuario.
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sportyclub} -d ${POSTGRES_DB:-sportyclub}"]
       interval: 5s
@@ -30,6 +32,8 @@ services:
     env_file: .env
     environment:
       POSTGRES_HOST: postgres
+      # Solo Caddy y el BFF del panel llegan a la API, ambos fijan el Host real.
+      TRUST_FORWARDED_HOST: "true"
     depends_on:
       postgres:
         condition: service_healthy

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, status
 from app.core.deps import TenantContext, get_tenant_context, require_permission
 from app.modules.rbac import service
 from app.modules.rbac.schemas import PermissionRead, RoleCreate, RoleRead, RoleUpdate
+from app.modules.users.models import User
 
 router = APIRouter(prefix="/roles", tags=["roles"])
 
@@ -33,9 +34,9 @@ async def list_roles(
 async def create_role(
     payload: RoleCreate,
     ctx: TenantDep,
-    _: Annotated[object, Depends(require_permission("roles:create"))],
+    current_user: Annotated[User, Depends(require_permission("roles:create"))],
 ) -> RoleRead:
-    return await service.create_role(ctx.session, ctx.tenant.id, payload)
+    return await service.create_role(ctx.session, ctx.tenant.id, payload, current_user.id)
 
 
 @router.get("/{role_id}", response_model=RoleRead)
@@ -53,15 +54,15 @@ async def update_role(
     role_id: uuid.UUID,
     payload: RoleUpdate,
     ctx: TenantDep,
-    _: Annotated[object, Depends(require_permission("roles:update"))],
+    current_user: Annotated[User, Depends(require_permission("roles:update"))],
 ) -> RoleRead:
-    return await service.update_role(ctx.session, role_id, payload)
+    return await service.update_role(ctx.session, role_id, payload, current_user.id)
 
 
 @router.delete("/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_role(
     role_id: uuid.UUID,
     ctx: TenantDep,
-    _: Annotated[object, Depends(require_permission("roles:delete"))],
+    current_user: Annotated[User, Depends(require_permission("roles:delete"))],
 ) -> None:
-    await service.delete_role(ctx.session, role_id)
+    await service.delete_role(ctx.session, role_id, current_user.id)

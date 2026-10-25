@@ -2,6 +2,8 @@ import uuid
 
 from pydantic import BaseModel, EmailStr, Field
 
+from app.core.security import PasswordStr
+
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -22,7 +24,7 @@ class RefreshRequest(BaseModel):
 class AcceptInvitationRequest(BaseModel):
     token: str
     full_name: str = Field(min_length=1, max_length=150)
-    password: str = Field(min_length=8, max_length=128)
+    password: PasswordStr
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -31,7 +33,7 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    password: str = Field(min_length=8, max_length=128)
+    password: PasswordStr
 
 
 class TenantSummary(BaseModel):
