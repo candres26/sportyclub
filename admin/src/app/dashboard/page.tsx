@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { apiFetch } from "@/lib/client";
-import type { Invitation, Me, Page, Role, User } from "@/lib/types";
+import type { Invitation, Me, Role, User } from "@/lib/types";
 
 function Stat({ label, value }: { label: string; value: number | string }) {
   return (
@@ -30,8 +30,11 @@ export default function DashboardHome() {
       .then((roles) => setCounts((c) => ({ ...c, roles: String(roles.length) })))
       .catch(() => undefined);
 
-    apiFetch<Page<Invitation>>("invitations")
-      .then((page) => setCounts((c) => ({ ...c, invitations: String(page.total ?? page.items.length) })))
+    apiFetch<Invitation[]>("invitations")
+      .then((invitations) => {
+        const pending = invitations.filter((i) => !i.accepted_at).length;
+        setCounts((c) => ({ ...c, invitations: String(pending) }));
+      })
       .catch(() => undefined);
   }, []);
 
